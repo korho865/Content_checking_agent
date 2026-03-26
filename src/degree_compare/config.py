@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+export GEMINI_API_KEY = AIzaSyCfpHZdyUpUi2dnTR0mQxwfsQ5t2PeJnKI
+
 import os
 from pathlib import Path
 

@@ -1,0 +1,3 @@
+[console_scripts]
+degree-compare = degree_compare.cli:cli_entry
+degree-compare-gui = degree_compare.gui:launch_gui

@@ -3,7 +3,9 @@ name = "content-checking-agent"
 version = "0.1.0"
 description = "Semantic comparison tool for Finnish university degree descriptions"
 readme = "README.md"
-authors = ["Student Success Lab <support@example.com>"]
+authors = [
+    { name = "Student Success Lab", email = "support@example.com" }
+]
 requires-python = ">=3.14"
 dependencies = [
     "google-generativeai>=0.5.4",
