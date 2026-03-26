@@ -21,9 +21,21 @@ class DegreeCompareGUI:
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title("Degree Comparator")
-        self.root.geometry("720x520")
+        self.root.geometry("820x600")
+        self.root.minsize(760, 520)
+        self.root.configure(padx=18, pady=18)
         self.repo = HistoryRepository()
         self.client: GeminiComparisonClient | None = None
+
+        self.style = ttk.Style(self.root)
+        try:
+            self.style.theme_use("clam")
+        except tk.TclError:
+            pass  # fall back to platform default if clam is unavailable
+        self.style.configure("Title.TLabel", font=("Segoe UI", 20, "bold"))
+        self.style.configure("Subtitle.TLabel", font=("Segoe UI", 11))
+        self.style.configure("Status.TLabel", font=("Segoe UI", 11, "bold"))
+        self.style.configure("Results.TLabel", font=("Segoe UI", 12, "bold"))
 
         self.url_a_var = tk.StringVar()
         self.url_b_var = tk.StringVar()
@@ -31,22 +43,53 @@ class DegreeCompareGUI:
         self._build_widgets()
 
     def _build_widgets(self) -> None:
-        padding = {"padx": 12, "pady": 6}
+        self.root.columnconfigure(0, weight=1)
+        self.root.columnconfigure(1, weight=1)
+        padding = {"padx": 10, "pady": 8}
 
-        ttk.Label(self.root, text="URL A").grid(row=0, column=0, sticky="w", **padding)
-        ttk.Entry(self.root, textvariable=self.url_a_var, width=80).grid(row=0, column=1, **padding)
+        header = ttk.Label(self.root, text="Degree Comparison Studio", style="Title.TLabel")
+        header.grid(row=0, column=0, columnspan=2, sticky="w")
+        subtitle = ttk.Label(
+            self.root,
+            text="Compare Finnish higher-education degree descriptions side-by-side",
+            style="Subtitle.TLabel",
+        )
+        subtitle.grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 14))
 
-        ttk.Label(self.root, text="URL B").grid(row=1, column=0, sticky="w", **padding)
-        ttk.Entry(self.root, textvariable=self.url_b_var, width=80).grid(row=1, column=1, **padding)
+        input_frame = ttk.LabelFrame(self.root, text="Degree URLs")
+        input_frame.grid(row=2, column=0, columnspan=2, sticky="ew", **padding)
+        input_frame.columnconfigure(1, weight=1)
 
-        self.compare_button = ttk.Button(self.root, text="Compare", command=self._on_compare)
-        self.compare_button.grid(row=2, column=1, sticky="e", **padding)
+        ttk.Label(input_frame, text="URL A").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
+        ttk.Entry(input_frame, textvariable=self.url_a_var).grid(row=0, column=1, sticky="ew", padx=10, pady=(10, 4))
 
-        self.status_label = ttk.Label(self.root, text="Ready", foreground="#444444")
-        self.status_label.grid(row=3, column=0, columnspan=2, sticky="w", **padding)
+        ttk.Label(input_frame, text="URL B").grid(row=1, column=0, sticky="w", padx=10, pady=(0, 12))
+        ttk.Entry(input_frame, textvariable=self.url_b_var).grid(row=1, column=1, sticky="ew", padx=10, pady=(0, 12))
 
-        self.results_box = tk.Text(self.root, height=20, width=90, state="disabled")
-        self.results_box.grid(row=4, column=0, columnspan=2, padx=12, pady=(6, 12))
+        action_frame = ttk.Frame(self.root)
+        action_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(4, 4))
+        action_frame.columnconfigure(0, weight=1)
+        self.status_label = ttk.Label(action_frame, text="Ready", style="Status.TLabel", foreground="#444444")
+        self.status_label.grid(row=0, column=0, sticky="w")
+        self.compare_button = ttk.Button(action_frame, text="Compare", command=self._on_compare)
+        self.compare_button.grid(row=0, column=1, sticky="e")
+
+        ttk.Label(self.root, text="Comparison Results", style="Results.TLabel").grid(
+            row=4, column=0, columnspan=2, sticky="w", pady=(8, 4)
+        )
+        self.results_box = tk.Text(
+            self.root,
+            height=18,
+            width=100,
+            state="disabled",
+            relief="flat",
+            highlightthickness=1,
+            highlightcolor="#cccccc",
+            highlightbackground="#cccccc",
+            font=("Consolas", 10),
+        )
+        self.results_box.grid(row=5, column=0, columnspan=2, sticky="nsew")
+        self.root.rowconfigure(5, weight=1)
 
     def _ensure_client(self) -> GeminiComparisonClient:
         if not self.client:
