@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from textwrap import dedent
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from .config import DEFAULT_MODEL, DEFAULT_TIMEOUT_SECONDS
 
@@ -18,19 +19,19 @@ class GeminiComparisonClient:
         model_name: str = DEFAULT_MODEL,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(
-            model_name=model_name,
-            tools=[{"url_context": {}}],
-        )
+        self.model_name = model_name
+        self.client = genai.Client(api_key=api_key)
         self.timeout_seconds = timeout_seconds
-        self.generation_config = {
-            "temperature": 0.1,
-            "response_mime_type": "application/json",
-        }
+        self.generation_config = types.GenerateContentConfig(
+            temperature=0.1,
+            response_mime_type="application/json",
+            tools=[types.Tool(url_context=types.UrlContext())],
+            http_options=types.HttpOptions(timeout=timeout_seconds),
+        )
 
     def _build_prompt(self) -> str:
-        return t"""You are a semantic comparison assistant for Finnish higher education programs.
+                return dedent(
+                        """You are a semantic comparison assistant for Finnish higher education programs.
 Analyze the two degree description URLs given via url_context and output strictly valid JSON.
 Use the schema:
 {
@@ -48,21 +49,22 @@ Use the schema:
 }
 Status must be "MATCH" when two values mean the same thing even if wording differs.
 """
+        ).strip()
 
     def compare(self, url_a: str, url_b: str) -> str:
         prompt = self._build_prompt()
-        response = self.model.generate_content(
-            [
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=[
                 {
                     "role": "user",
                     "parts": [
                         {"text": prompt},
-                        {"url_context": {"urls": [url_a, url_b]}}
+                        {"url_context": {"urls": [url_a, url_b]}},
                     ],
                 }
             ],
-            generation_config=self.generation_config,
-            request_options={"timeout": self.timeout_seconds},
+            config=self.generation_config,
         )
         text_payload = response.text or ";".join(
             part.text for candidate in response.candidates for part in candidate.content.parts if hasattr(part, "text")
