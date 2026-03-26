@@ -5,7 +5,7 @@ Summary: Semantic comparison tool for Finnish university degree descriptions
 Author-email: Student Success Lab <support@example.com>
 Requires-Python: >=3.14
 Description-Content-Type: text/markdown
-Requires-Dist: google-generativeai>=0.5.4
+Requires-Dist: google-genai>=0.6.0
 
 # Content Checking Agent
 

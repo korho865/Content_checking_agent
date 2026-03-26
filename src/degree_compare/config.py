@@ -7,7 +7,7 @@ from pathlib import Path
 DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "history.db"
 API_KEY_ENV_VAR = "GOOGLE_API_KEY"
 DEFAULT_MODEL = "gemini-2.5-flash"
-DEFAULT_TIMEOUT_SECONDS = 90
+DEFAULT_TIMEOUT_SECONDS = 180
 
 
 def get_db_path() -> Path:

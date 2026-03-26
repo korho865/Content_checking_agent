@@ -60,7 +60,11 @@ def cli_entry(argv: list[str] | None = None) -> None:
     else:
         api_key = get_api_key()
         client = GeminiComparisonClient(api_key=api_key)
-        comparison_json = client.compare(args.url_a, args.url_b)
+        try:
+            comparison_json = client.compare(args.url_a, args.url_b)
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            raise SystemExit(1) from exc
         repo.save(url_hash, comparison_json, alert_count=ComparisonResult.from_raw_json(comparison_json).alert_count)
 
     result = ComparisonResult.from_raw_json(comparison_json)

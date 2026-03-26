@@ -5,7 +5,7 @@ import json
 from textwrap import dedent
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from .config import DEFAULT_MODEL, DEFAULT_TIMEOUT_SECONDS
 
@@ -20,19 +20,23 @@ class GeminiComparisonClient:
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         self.model_name = model_name
-        self.client = genai.Client(api_key=api_key)
         self.timeout_seconds = timeout_seconds
+        timeout_ms = int(timeout_seconds * 1000)
+        # Use the same HttpOptions on both the high-level client and the request config
+        # so long-running url_context fetches have enough time to complete.
+        http_options = types.HttpOptions(timeout=timeout_ms)
+        self.client = genai.Client(api_key=api_key, http_options=http_options)
         self.generation_config = types.GenerateContentConfig(
             temperature=0.1,
             response_mime_type="application/json",
             tools=[types.Tool(url_context=types.UrlContext())],
-            http_options=types.HttpOptions(timeout=timeout_seconds),
+            http_options=http_options,
         )
 
-    def _build_prompt(self) -> str:
-                return dedent(
-                        """You are a semantic comparison assistant for Finnish higher education programs.
-Analyze the two degree description URLs given via url_context and output strictly valid JSON.
+    def _build_prompt(self, url_a: str, url_b: str) -> str:
+        instructions = dedent(
+            """You are a semantic comparison assistant for Finnish higher education programs.
+Analyze the two degree description URLs using the url_context tool and output strictly valid JSON.
 Use the schema:
 {
   "url_a": string,
@@ -50,22 +54,30 @@ Use the schema:
 Status must be "MATCH" when two values mean the same thing even if wording differs.
 """
         ).strip()
+        url_block = dedent(
+            f"""URLs to fetch via url_context:
+- url_a: {url_a}
+- url_b: {url_b}
+"""
+        ).strip()
+        return f"{instructions}\n\n{url_block}"
 
     def compare(self, url_a: str, url_b: str) -> str:
-        prompt = self._build_prompt()
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=[
-                {
-                    "role": "user",
-                    "parts": [
-                        {"text": prompt},
-                        {"url_context": {"urls": [url_a, url_b]}},
-                    ],
-                }
-            ],
-            config=self.generation_config,
-        )
+        prompt = self._build_prompt(url_a, url_b)
+        contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=self.generation_config,
+            )
+        except errors.ClientError as exc:
+            if exc.code == 403 and exc.message and "reported as leaked" in exc.message:
+                raise RuntimeError(
+                    "Gemini rejected the configured GOOGLE_API_KEY because it has been reported as leaked. "
+                    "Generate a fresh key at https://aistudio.google.com/app/apikey, set GOOGLE_API_KEY, and rerun."
+                ) from exc
+            raise
         text_payload = response.text or ";".join(
             part.text for candidate in response.candidates for part in candidate.content.parts if hasattr(part, "text")
         )
