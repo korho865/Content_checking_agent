@@ -66,3 +66,16 @@ class HistoryRepository:
                 (url_pair_hash, comparison_json, alert_count, timestamp),
             )
             conn.commit()
+
+    def list_recent(self, limit: int = 50) -> list[HistoryRecord]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT url_pair_hash, comparison_json, alert_count, timestamp
+                FROM comparisons
+                ORDER BY datetime(timestamp) DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [HistoryRecord(*row) for row in rows]

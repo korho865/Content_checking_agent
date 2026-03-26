@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -26,6 +27,7 @@ class DegreeCompareGUI:
         self.root.configure(padx=18, pady=18)
         self.repo = HistoryRepository()
         self.client: GeminiComparisonClient | None = None
+        self.history_cache: dict[str, ComparisonResult] = {}
 
         self.style = ttk.Style(self.root)
         try:
@@ -41,6 +43,7 @@ class DegreeCompareGUI:
         self.url_b_var = tk.StringVar()
 
         self._build_widgets()
+        self._refresh_history()
 
     def _build_widgets(self) -> None:
         self.root.columnconfigure(0, weight=1)
@@ -89,7 +92,28 @@ class DegreeCompareGUI:
             font=("Consolas", 10),
         )
         self.results_box.grid(row=5, column=0, columnspan=2, sticky="nsew")
-        self.root.rowconfigure(5, weight=1)
+        self.root.rowconfigure(5, weight=2)
+
+        history_frame = ttk.LabelFrame(self.root, text="Previous Comparisons")
+        history_frame.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(12, 0))
+        history_frame.columnconfigure(0, weight=1)
+        history_frame.rowconfigure(0, weight=1)
+
+        columns = ("urls", "alert", "timestamp")
+        self.history_tree = ttk.Treeview(history_frame, columns=columns, show="headings", height=6)
+        self.history_tree.heading("urls", text="URL Pair")
+        self.history_tree.heading("alert", text="Alert")
+        self.history_tree.heading("timestamp", text="Last Compared")
+        self.history_tree.column("urls", width=420, anchor="w")
+        self.history_tree.column("alert", width=80, anchor="center")
+        self.history_tree.column("timestamp", width=140, anchor="center")
+        self.history_tree.bind("<<TreeviewSelect>>", self._on_history_select)
+        self.history_tree.grid(row=0, column=0, sticky="nsew", padx=(6, 0), pady=6)
+
+        scrollbar = ttk.Scrollbar(history_frame, orient="vertical", command=self.history_tree.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns", pady=6, padx=(0, 6))
+        self.history_tree.configure(yscrollcommand=scrollbar.set)
+        self.root.rowconfigure(6, weight=1)
 
     def _ensure_client(self) -> GeminiComparisonClient:
         if not self.client:
@@ -120,6 +144,7 @@ class DegreeCompareGUI:
                 self.repo.save(url_hash, payload, alert_count=result.alert_count)
             result = ComparisonResult.from_raw_json(payload)
             self.root.after(0, self._render_result, result)
+            self.root.after(0, self._refresh_history)
         except RuntimeError as runtime_exc:
             self.root.after(0, lambda: messagebox.showerror("Configuration", str(runtime_exc)))
         except Exception as generic_exc:
@@ -141,6 +166,44 @@ class DegreeCompareGUI:
                 self.results_box.insert(tk.END, f"Reason: {field.explanation}\n")
             self.results_box.insert(tk.END, "\n")
         self.results_box.config(state="disabled")
+
+    def _refresh_history(self) -> None:
+        if not hasattr(self, "history_tree"):
+            return
+        for item in self.history_tree.get_children():
+            self.history_tree.delete(item)
+        self.history_cache.clear()
+
+        for record in self.repo.list_recent():
+            result = ComparisonResult.from_raw_json(record.comparison_json)
+            pair_label = f"{self._shorten_url(result.url_a)} ↔ {self._shorten_url(result.url_b)}"
+            alert = result.alert_level.upper()
+            timestamp = self._format_timestamp(record.timestamp)
+            item_id = self.history_tree.insert("", "end", values=(pair_label, alert, timestamp))
+            self.history_cache[item_id] = result
+
+    def _on_history_select(self, _event: object | None = None) -> None:
+        selection = self.history_tree.selection()
+        if not selection:
+            return
+        item_id = selection[0]
+        result = self.history_cache.get(item_id)
+        if result:
+            self._render_result(result)
+
+    @staticmethod
+    def _shorten_url(url: str, max_length: int = 60) -> str:
+        if len(url) <= max_length:
+            return url
+        return url[: max_length - 3] + "..."
+
+    @staticmethod
+    def _format_timestamp(timestamp: str) -> str:
+        try:
+            dt = datetime.fromisoformat(timestamp)
+        except ValueError:
+            return timestamp
+        return dt.astimezone().strftime("%Y-%m-%d %H:%M")
 
     def run(self) -> None:
         self.root.mainloop()
