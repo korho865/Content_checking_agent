@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
+import os
 import threading
+from datetime import datetime
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, simpledialog, ttk
 
 from .cli import _hash_pair
 from .comparison import ComparisonResult
-from .config import get_api_key
+from .config import API_KEY_ENV_VAR, get_api_key
 from .gemini_client import GeminiComparisonClient
 from .history_db import HistoryRepository
+from .secret_store import save_api_key
 
 ALERT_COLORS = {
     "green": "#1b5e20",
@@ -71,11 +73,14 @@ class DegreeCompareGUI:
 
         action_frame = ttk.Frame(self.root)
         action_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(4, 4))
-        action_frame.columnconfigure(0, weight=1)
+        action_frame.columnconfigure(0, weight=0)
+        action_frame.columnconfigure(1, weight=1)
         self.status_label = ttk.Label(action_frame, text="Ready", style="Status.TLabel", foreground="#444444")
         self.status_label.grid(row=0, column=0, sticky="w")
         self.compare_button = ttk.Button(action_frame, text="Compare", command=self._on_compare)
-        self.compare_button.grid(row=0, column=1, sticky="e")
+        self.compare_button.grid(row=0, column=2, sticky="e")
+        self.change_key_button = ttk.Button(action_frame, text="Change API key", command=self._on_change_api_key)
+        self.change_key_button.grid(row=0, column=3, sticky="e", padx=(8, 0))
 
         ttk.Label(self.root, text="Comparison Results", style="Results.TLabel").grid(
             row=4, column=0, columnspan=2, sticky="w", pady=(8, 4)
@@ -117,7 +122,9 @@ class DegreeCompareGUI:
 
     def _ensure_client(self) -> GeminiComparisonClient:
         if not self.client:
-            api_key = get_api_key()
+            api_key = self._get_or_prompt_api_key()
+            if not api_key:
+                raise RuntimeError("A Gemini API key is required to run comparisons.")
             self.client = GeminiComparisonClient(api_key=api_key)
         return self.client
 
@@ -129,6 +136,13 @@ class DegreeCompareGUI:
             return
         self.compare_button.config(state="disabled")
         self.status_label.config(text="Comparing...", foreground="#333333")
+        try:
+            self._ensure_client()
+        except RuntimeError as exc:
+            messagebox.showerror("Configuration", str(exc))
+            self.compare_button.config(state="normal")
+            self.status_label.config(text="Ready", foreground="#444444")
+            return
         threading.Thread(target=self._compare_async, args=(url_a, url_b), daemon=True).start()
 
     def _compare_async(self, url_a: str, url_b: str) -> None:
@@ -190,6 +204,43 @@ class DegreeCompareGUI:
         result = self.history_cache.get(item_id)
         if result:
             self._render_result(result)
+
+    def _on_change_api_key(self) -> None:
+        new_key = self._prompt_for_api_key()
+        if new_key:
+            self.client = None
+            messagebox.showinfo("API key updated", "Future comparisons will use the new Gemini API key.")
+
+    def _get_or_prompt_api_key(self) -> str | None:
+        try:
+            return get_api_key()
+        except RuntimeError:
+            return self._prompt_for_api_key()
+
+    def _prompt_for_api_key(self) -> str | None:
+        prompt_text = (
+            "Enter the Gemini API key provided by your administrator. The key is stored only on this device."
+        )
+        while True:
+            api_key = simpledialog.askstring(
+                "Set Gemini API key",
+                prompt_text,
+                parent=self.root,
+                show="*",
+            )
+            if api_key is None:
+                return None
+            api_key = api_key.strip()
+            if not api_key:
+                messagebox.showwarning("Missing key", "The API key cannot be empty.")
+                continue
+            try:
+                save_api_key(api_key)
+            except ValueError:
+                messagebox.showwarning("Invalid key", "Provide a non-empty API key.")
+                continue
+            os.environ[API_KEY_ENV_VAR] = api_key
+            return api_key
 
     @staticmethod
     def _shorten_url(url: str, max_length: int = 60) -> str:
