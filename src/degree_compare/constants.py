@@ -20,6 +20,7 @@ FIELD_SPECS: Final[list[FieldSpec]] = [
     FieldSpec("opetuskieli", "Opetuskieli", critical=True),
     FieldSpec("koulutuksen_laajuus", "Koulutuksen laajuus", critical=True),
     FieldSpec("opetussuunnitelma", "Opetussuunnitelma", critical=True),
+    FieldSpec("koulutuksen_kuvaus", "Koulutuksen kuvaus"),
 ]
 
 FIELD_ORDER: Final[list[str]] = [spec.key for spec in FIELD_SPECS]

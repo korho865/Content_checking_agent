@@ -47,7 +47,7 @@ Use the schema:
   "url_b": string,
   "fields": [
     {
-      "field": one of ["opetustapa", "opetusaika", "maksullisuus", "koulutustyyppi", "suunnitelmankesto", "opetuskieli", "koulutuksen_laajuus", "opetussuunnitelma"],
+      "field": one of ["opetustapa", "opetusaika", "maksullisuus", "koulutustyyppi", "suunnitelmankesto", "opetuskieli", "koulutuksen_laajuus", "opetussuunnitelma", "koulutuksen_kuvaus"],
       "status": "MATCH" | "DIFF",
       "value_a": string,
       "value_b": string,
@@ -56,6 +56,7 @@ Use the schema:
   ]
 }
 Status must be "MATCH" when two values mean the same thing even if wording differs.
+For koulutuksen_kuvaus, summarize the essential aspects of the degree description (often labeled "koulutuksen kuvaus" or "tutkinnon sisalto").
 """
         ).strip()
         url_block = dedent(
