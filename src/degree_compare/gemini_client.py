@@ -37,9 +37,43 @@ class GeminiComparisonClient:
             http_options=http_options,
         )
 
-    def _build_prompt(self, url_a: str, url_b: str) -> str:
-        instructions = dedent(
-            """You are a semantic comparison assistant for Finnish higher education programs.
+    def _build_prompt(self, url_a: str, url_b: str, focus: str = "full") -> str:
+        if focus == "curriculum":
+            instructions = dedent(
+                """You are a curriculum comparison assistant for Finnish higher education programs.
+Analyze the two degree description URLs using the url_context tool and output strictly valid JSON.
+Compare curriculum content at course level:
+- Extract concrete courses/modules from curriculum sections (often "opetussuunnitelma", "opintojen rakenne", "opintojen sisalto", "tutkinnon sisalto").
+- Normalize minor naming variations before matching (e.g., wording variants, punctuation differences, close synonyms).
+- Match courses semantically and treat equivalent courses as the same.
+
+Use this schema exactly:
+{
+  "url_a": string,
+  "url_b": string,
+  "fields": [
+    {
+      "field": "opetussuunnitelma",
+      "status": "MATCH" | "DIFF",
+      "value_a": string,
+      "value_b": string,
+      "explanation": string
+    }
+  ]
+}
+
+Output rules for outliers only:
+- If all courses match semantically, set status to MATCH and set value_a/value_b to "No outliers".
+- If differences exist, set status to DIFF.
+- value_a: ONLY courses/modules present in URL A but missing from URL B, as a concise bullet-style string.
+- value_b: ONLY courses/modules present in URL B but missing from URL A, as a concise bullet-style string.
+- explanation: short summary of key curriculum mismatches.
+- Do NOT repeat shared courses in value_a/value_b.
+"""
+            ).strip()
+        else:
+            instructions = dedent(
+                """You are a semantic comparison assistant for Finnish higher education programs.
 Analyze the two degree description URLs using the url_context tool and output strictly valid JSON.
 Use the schema:
 {
@@ -57,8 +91,10 @@ Use the schema:
 }
 Status must be "MATCH" when two values mean the same thing even if wording differs.
 For koulutuksen_kuvaus, summarize the essential aspects of the degree description (often labeled "koulutuksen kuvaus" or "tutkinnon sisalto").
+For opetussuunnitelma in full mode, emphasize outlier courses/modules and avoid listing shared courses in DIFF cases.
 """
-        ).strip()
+            ).strip()
+
         url_block = dedent(
             f"""URLs to fetch via url_context:
 - url_a: {url_a}
@@ -67,8 +103,8 @@ For koulutuksen_kuvaus, summarize the essential aspects of the degree descriptio
         ).strip()
         return f"{instructions}\n\n{url_block}"
 
-    def compare(self, url_a: str, url_b: str) -> str:
-        prompt = self._build_prompt(url_a, url_b)
+    def compare(self, url_a: str, url_b: str, focus: str = "full") -> str:
+        prompt = self._build_prompt(url_a, url_b, focus=focus)
         contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
         try:
             response = self.client.models.generate_content(
