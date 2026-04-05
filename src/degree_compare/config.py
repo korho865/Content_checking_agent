@@ -2,18 +2,24 @@ from __future__ import annotations
 
 
 import os
+import sys
 from pathlib import Path
 
 from .secret_store import load_saved_api_key
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "history.db"
 API_KEY_ENV_VAR = "GOOGLE_API_KEY"
 DEFAULT_MODEL = "gemini-2.5-flash"
 DEFAULT_TIMEOUT_SECONDS = 180
 
 
+def _default_db_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "history.db"
+    return Path(__file__).resolve().parents[2] / "history.db"
+
+
 def get_db_path() -> Path:
-    return Path(os.environ.get("DEGREE_COMPARE_DB", DEFAULT_DB_PATH))
+    return Path(os.environ.get("DEGREE_COMPARE_DB", _default_db_path()))
 
 
 def get_api_key() -> str:

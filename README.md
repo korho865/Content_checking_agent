@@ -23,15 +23,38 @@ Python 3.14 prototype that compares two university degree descriptions semantica
 
 The application caches every comparison in `history.db` so repeated URL pairs reuse the stored response instead of consuming extra tokens.
 
-## Packaging into a Single Executable
+## Packaging into a Single Executable (Windows)
 
-Use PyInstaller once the prototype is validated:
+Build a GUI-only `.exe` with one command:
 
-```bash
-pyinstaller --name DegreeCompare --onefile --console src/degree_compare/__main__.py
+```powershell
+./scripts/build_exe.ps1
 ```
 
-Ship the resulting binary plus the `history.db` seed file (created automatically on first launch).
+Output:
+
+- `dist/DegreeCompare.exe`
+
+Notes:
+
+- The app creates `history.db` next to the `.exe` when running as a packaged build.
+- API key is requested in the GUI and stored per-user in `%APPDATA%/DegreeCompare/config.json`.
+
+## Building a Windows Installer (Setup EXE)
+
+Prerequisite: install Inno Setup 6 (includes `ISCC.exe`).
+
+Build installer with one command:
+
+```powershell
+./scripts/build_installer.ps1
+```
+
+Output:
+
+- `installer-output/DegreeCompare-Setup.exe`
+
+The installer places the app in Program Files and optionally creates a desktop shortcut.
 
 ## Alert Colors
 
