@@ -37,7 +37,7 @@ Output:
 
 Notes:
 
-- The app creates `history.db` next to the `.exe` when running as a packaged build.
+- The packaged app stores `history.db` in `%LOCALAPPDATA%/DegreeCompare/history.db`.
 - API key is requested in the GUI and stored per-user in `%APPDATA%/DegreeCompare/config.json`.
 
 ## Building a Windows Installer (Setup EXE)

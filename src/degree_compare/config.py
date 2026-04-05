@@ -14,7 +14,10 @@ DEFAULT_TIMEOUT_SECONDS = 180
 
 def _default_db_path() -> Path:
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent / "history.db"
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            return Path(local_app_data) / "DegreeCompare" / "history.db"
+        return Path.home() / "AppData" / "Local" / "DegreeCompare" / "history.db"
     return Path(__file__).resolve().parents[2] / "history.db"
 
 
