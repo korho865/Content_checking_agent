@@ -96,6 +96,7 @@ class DegreeCompareGUI:
             highlightbackground="#cccccc",
             font=("Consolas", 10),
         )
+        self.results_box.tag_configure("diff_status", foreground="#c62828", font=("Consolas", 10, "bold"))
         self.results_box.grid(row=5, column=0, columnspan=2, sticky="nsew")
         self.root.rowconfigure(5, weight=2)
 
@@ -173,7 +174,12 @@ class DegreeCompareGUI:
         self.results_box.config(state="normal")
         self.results_box.delete("1.0", tk.END)
         for field in result.fields:
-            self.results_box.insert(tk.END, f"{field.label}: {field.status}\n")
+            self.results_box.insert(tk.END, f"{field.label}: ")
+            if field.status == "DIFF":
+                self.results_box.insert(tk.END, field.status, "diff_status")
+            else:
+                self.results_box.insert(tk.END, field.status)
+            self.results_box.insert(tk.END, "\n")
             self.results_box.insert(tk.END, f"A: {field.value_a or 'n/a'}\n")
             self.results_box.insert(tk.END, f"B: {field.value_b or 'n/a'}\n")
             if field.explanation:
